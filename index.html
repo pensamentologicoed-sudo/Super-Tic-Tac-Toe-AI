@@ -17,11 +17,10 @@
             background-color: #0f172a;
             color: #f8fafc;
             margin: 0;
-            overflow: hidden; /* Evita scroll no mobile */
-            user-select: none; /* Evita seleção de texto como em apps nativos */
+            overflow: hidden;
+            user-select: none;
             -webkit-tap-highlight-color: transparent;
         }
-        /* Garantir altura total no mobile */
         #root {
             height: 100vh;
             height: -webkit-fill-available;
@@ -41,6 +40,8 @@
 </head>
 <body>
     <div id="root"></div>
+    <!-- Ponto de entrada crucial para o funcionamento do app -->
+    <script type="module" src="./index.tsx"></script>
 <script type="module" src="/index.tsx"></script>
 </body>
 </html>
