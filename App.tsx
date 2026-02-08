@@ -155,6 +155,14 @@ const App: React.FC = () => {
     setIsThinking(false);
   };
 
+  const resetAll = () => {
+    if (window.confirm("Isso irá zerar o placar e reiniciar o jogo. Continuar?")) {
+      setScores({ X: 0, O: 0, Draws: 0 });
+      localStorage.removeItem('ttt_scores_v2');
+      resetGame();
+    }
+  };
+
   return (
     <div className="h-screen w-full flex flex-col items-center justify-between py-8 px-6 bg-[#020617] text-slate-50 overflow-hidden select-none">
       <header className="text-center w-full space-y-1">
@@ -201,7 +209,7 @@ const App: React.FC = () => {
             </div>
           )}
 
-          {/* INDICADOR DE TURNO / STATUS (Nova posição sugerida) */}
+          {/* INDICADOR DE TURNO / STATUS */}
           <div className="flex justify-center w-full min-h-[40px] items-center">
             <div className={`px-6 py-2 rounded-full shadow-2xl font-black text-[10px] uppercase tracking-wider transition-all duration-500 flex flex-col items-center ${winner ? 'bg-emerald-500 text-white scale-105' : 'bg-white/5 border border-white/10 text-white'}`}>
               {isThinking ? (
@@ -257,12 +265,19 @@ const App: React.FC = () => {
         </div>
       </main>
 
-      <footer className="w-full max-w-xs">
+      {/* RODAPÉ COM DOIS BOTÕES */}
+      <footer className="w-full max-w-xs flex flex-col gap-2">
         <button 
           onClick={resetGame} 
           className="w-full py-4 bg-white hover:bg-slate-200 text-black font-black text-[11px] uppercase tracking-[0.3em] rounded-2xl shadow-xl transition-all active:scale-95"
         >
           {winner ? "Nova Partida" : "Reiniciar Jogo"}
+        </button>
+        <button 
+          onClick={resetAll} 
+          className="w-full py-2.5 bg-slate-900/40 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 border border-white/5 font-bold text-[9px] uppercase tracking-[0.2em] rounded-xl transition-all active:scale-95"
+        >
+          Zerar Tudo
         </button>
       </footer>
 
