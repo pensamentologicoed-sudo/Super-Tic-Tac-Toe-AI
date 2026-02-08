@@ -45,16 +45,12 @@ const Square: React.FC<SquareProps> = ({ value, onClick, isWinningSquare, isGame
 
 // --- SERVIÇO IA (GEMINI) ---
 const getAIMove = async (board: SquareValue[], aiPlayer: Player, difficulty: Difficulty): Promise<number> => {
-  // Lógica de Movimento Aleatório (Fácil)
   const availableMoves = board.map((val, idx) => val === null ? idx : -1).filter(idx => idx !== -1);
   const getRandomMove = () => availableMoves[Math.floor(Math.random() * availableMoves.length)];
 
   if (difficulty === Difficulty.EASY) return getRandomMove();
-  
-  // Lógica Normal (50% Chance de errar)
   if (difficulty === Difficulty.NORMAL && Math.random() > 0.5) return getRandomMove();
 
-  // Lógica Neural (Gemini)
   const apiKey = process.env.API_KEY;
   if (!apiKey) return getRandomMove();
 
@@ -134,8 +130,7 @@ const App: React.FC = () => {
     if (gameMode === GameMode.PVE && !isXNext && !winner) {
       const triggerAI = async () => {
         setIsThinking(true);
-        // Delay fake para humanizar a IA
-        const delay = difficulty === Difficulty.NEURAL ? 1200 : 600;
+        const delay = Math.floor(Math.random() * (600 - 300 + 1)) + 300;
         await new Promise(r => setTimeout(r, delay));
         const move = await getAIMove(board, 'O', difficulty);
         setIsThinking(false);
@@ -162,7 +157,6 @@ const App: React.FC = () => {
 
   return (
     <div className="h-screen w-full flex flex-col items-center justify-between py-8 px-6 bg-[#020617] text-slate-50 overflow-hidden select-none">
-      {/* Header */}
       <header className="text-center w-full space-y-1">
         <h1 className="text-3xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-b from-white to-slate-500 italic">
           TIC·TAC·TOE
@@ -170,14 +164,14 @@ const App: React.FC = () => {
         <div className="flex items-center justify-center gap-1.5 opacity-40">
           <div className={`w-1.5 h-1.5 rounded-full ${isThinking ? 'bg-amber-400 animate-bounce' : 'bg-emerald-400'}`}></div>
           <span className="text-[9px] font-bold uppercase tracking-[0.2em]">
-            {isThinking ? "Sincronizando Neural Link..." : "Sistema Operacional Ativo"}
+            {isThinking ? "Neural Link Processando..." : "Sistema Online"}
           </span>
         </div>
       </header>
 
-      <main className="w-full max-w-xs flex flex-col gap-6">
-        {/* Selectores de Modo e Dificuldade */}
-        <div className="space-y-3">
+      <main className="w-full max-w-xs flex flex-col gap-5">
+        {/* Controles: Modo, Dificuldade e Status */}
+        <div className="space-y-4">
           <div className="flex bg-slate-900/60 p-1 rounded-2xl border border-white/5">
             <button 
               onClick={() => { setGameMode(GameMode.PVE); resetGame(); }} 
@@ -206,11 +200,31 @@ const App: React.FC = () => {
               ))}
             </div>
           )}
+
+          {/* INDICADOR DE TURNO / STATUS (Nova posição sugerida) */}
+          <div className="flex justify-center w-full min-h-[40px] items-center">
+            <div className={`px-6 py-2 rounded-full shadow-2xl font-black text-[10px] uppercase tracking-wider transition-all duration-500 flex flex-col items-center ${winner ? 'bg-emerald-500 text-white scale-105' : 'bg-white/5 border border-white/10 text-white'}`}>
+              {isThinking ? (
+                <span className="flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
+                  IA PENSANDO...
+                </span>
+              ) : winner ? (
+                <div className="text-center">
+                  <div className="leading-tight">{winner === 'Draw' ? "Empate Técnico" : `Vencedor: ${winner}`}</div>
+                  {winner === 'Draw' && <div className="text-[7px] opacity-70 font-bold tracking-normal">Ninguém conseguiu vencer</div>}
+                </div>
+              ) : (
+                <span className="flex items-center gap-1.5">
+                  <span className={`w-1.5 h-1.5 rounded-full animate-ping ${isXNext ? 'bg-cyan-500' : 'bg-rose-500'}`}></span>
+                  👉 Vez do jogador: {isXNext ? 'X' : 'O'}
+                </span>
+              )}
+            </div>
+          </div>
         </div>
 
-        {/* Board */}
         <div className="relative group">
-          {/* Ambient Glow */}
           <div className="absolute -inset-6 bg-gradient-to-tr from-cyan-500/10 to-rose-500/10 rounded-[3rem] blur-3xl opacity-50 group-hover:opacity-100 transition-opacity"></div>
           
           <div className="grid grid-cols-3 gap-3 bg-slate-900/60 p-4 rounded-[2.2rem] border border-white/10 backdrop-blur-2xl relative z-10">
@@ -225,25 +239,9 @@ const App: React.FC = () => {
               />
             ))}
           </div>
-
-          {/* Status Bar */}
-          <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-full flex justify-center z-20">
-            <div className={`px-5 py-2 rounded-full shadow-2xl font-black text-[9px] uppercase tracking-wider transition-all duration-500 ${winner ? 'bg-emerald-500 text-white scale-110' : 'bg-white text-black'}`}>
-              {isThinking ? (
-                <span className="flex items-center gap-1">
-                  Gemini <span className="animate-pulse">...</span>
-                </span>
-              ) : winner ? (
-                winner === 'Draw' ? "Empate Técnico" : `Vencedor: ${winner}`
-              ) : (
-                `Aguardando: ${isXNext ? 'X' : 'O'}`
-              )}
-            </div>
-          </div>
         </div>
 
-        {/* Scoreboard */}
-        <div className="grid grid-cols-3 gap-2 px-2 pt-2">
+        <div className="grid grid-cols-3 gap-2 px-2">
           <div className="bg-slate-900/40 py-3 rounded-2xl border border-white/5 text-center">
             <div className="text-[8px] font-bold text-cyan-400 uppercase tracking-tighter opacity-70">Jogador X</div>
             <div className="text-xl font-black">{scores.X}</div>
@@ -259,21 +257,19 @@ const App: React.FC = () => {
         </div>
       </main>
 
-      {/* Footer / Reset */}
       <footer className="w-full max-w-xs">
         <button 
           onClick={resetGame} 
           className="w-full py-4 bg-white hover:bg-slate-200 text-black font-black text-[11px] uppercase tracking-[0.3em] rounded-2xl shadow-xl transition-all active:scale-95"
         >
-          {winner ? "Nova Partida" : "Reiniciar"}
+          {winner ? "Nova Partida" : "Reiniciar Jogo"}
         </button>
       </footer>
 
-      {/* Tailwind Animations */}
       <style>{`
         @keyframes pulse {
-          0%, 100% { transform: scale(1.05); filter: brightness(1); }
-          50% { transform: scale(1.08); filter: brightness(1.3); }
+          0%, 100% { transform: scale(1.05); filter: brightness(1) drop-shadow(0 0 20px rgba(16,185,129,0.5)); }
+          50% { transform: scale(1.08); filter: brightness(1.3) drop-shadow(0 0 40px rgba(16,185,129,0.8)); }
         }
       `}</style>
     </div>
