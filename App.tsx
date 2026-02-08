@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Player, SquareValue, GameMode, Difficulty, Scores, GameMove } from './types';
-import { checkWinnerRaw, WINNING_COMBINATIONS } from './game/gameLogic';
+import { WINNING_COMBINATIONS } from './game/gameLogic';
 import { getAIMove } from './ai/ticTacToeAI';
 import Board from './ui/Board';
 import StatusBar from './ui/StatusBar';
@@ -20,12 +20,18 @@ const App: React.FC = () => {
   const [replayIndex, setReplayIndex] = useState<number | null>(null);
 
   const [scores, setScores] = useState<Scores>(() => {
-    const saved = localStorage.getItem('ttt_scores_v4');
-    return saved ? JSON.parse(saved) : { X: 0, O: 0, Draws: 0 };
+    try {
+      const saved = typeof window !== 'undefined' ? localStorage.getItem('ttt_scores_v4') : null;
+      return saved ? JSON.parse(saved) : { X: 0, O: 0, Draws: 0 };
+    } catch {
+      return { X: 0, O: 0, Draws: 0 };
+    }
   });
 
   useEffect(() => {
-    localStorage.setItem('ttt_scores_v4', JSON.stringify(scores));
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('ttt_scores_v4', JSON.stringify(scores));
+    }
   }, [scores]);
 
   const checkWinner = useMemo(() => {
@@ -54,13 +60,17 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (gameMode === GameMode.PVE && !isXNext && !winner && replayIndex === null) {
+      let isMounted = true;
       (async () => {
         setIsThinking(true);
         const move = await getAIMove(board, 'O', difficulty);
         await new Promise(r => setTimeout(r, 600));
-        setIsThinking(false);
-        if (move !== -1) handleClick(move);
+        if (isMounted) {
+          setIsThinking(false);
+          if (move !== -1) handleClick(move);
+        }
       })();
+      return () => { isMounted = false; };
     }
   }, [isXNext, gameMode, winner, board, difficulty, handleClick, replayIndex]);
 
@@ -72,7 +82,7 @@ const App: React.FC = () => {
       });
       setLastMatchHistory(currentHistory);
     }
-  }, [winner]);
+  }, [winner, currentHistory]);
 
   const resetGame = () => {
     setBoard(Array(9).fill(null));
@@ -82,7 +92,6 @@ const App: React.FC = () => {
     setReplayIndex(null);
   };
 
-  // Lógica de Navegação do Replay
   const startReplay = () => {
     if (!lastMatchHistory) return;
     setReplayIndex(0);
@@ -101,7 +110,6 @@ const App: React.FC = () => {
 
     if (nextIdx === replayIndex) return;
 
-    // Reconstrói o tabuleiro até o ponto desejado
     const newBoard: SquareValue[] = Array(9).fill(null);
     for (let i = 0; i < nextIdx; i++) {
       const move = lastMatchHistory[i];
@@ -146,7 +154,7 @@ const App: React.FC = () => {
             </>
           ) : (
             <div className="h-[92px] flex items-center justify-center">
-               <span className="text-[10px] font-black text-cyan-500 tracking-[0.3em] uppercase animate-pulse">Analizando Jogadas</span>
+               <span className="text-[10px] font-black text-cyan-500 tracking-[0.3em] uppercase animate-pulse">Analisando Jogadas</span>
             </div>
           )}
         </div>
