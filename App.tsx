@@ -1,29 +1,34 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { GoogleGenAI, Type } from "@google/genai";
 
 // --- TIPOS ---
 type Player = 'X' | 'O';
 type SquareValue = Player | null;
 enum GameMode { PVP = 'PVP', PVE = 'PVE' }
+enum Difficulty { EASY = 'EASY', NORMAL = 'NORMAL', NEURAL = 'NEURAL' }
 
 // --- COMPONENTE SQUARE ---
 interface SquareProps {
   value: SquareValue;
   onClick: () => void;
   isWinningSquare: boolean;
+  isGameOver: boolean;
   disabled: boolean;
 }
 
-const Square: React.FC<SquareProps> = ({ value, onClick, isWinningSquare, disabled }) => {
-  const baseStyles = "aspect-square w-full flex items-center justify-center text-5xl font-black rounded-3xl transition-all duration-300 transform active:scale-95";
+const Square: React.FC<SquareProps> = ({ value, onClick, isWinningSquare, isGameOver, disabled }) => {
+  const baseStyles = "aspect-square w-full flex items-center justify-center text-5xl font-black rounded-[1.8rem] transition-all duration-300 transform active:scale-90 select-none";
+  
   const stateStyles = value === null 
-    ? "bg-slate-800/30 hover:bg-slate-700/50 cursor-pointer border border-white/5" 
+    ? "bg-slate-800/10 hover:bg-slate-700/30 cursor-pointer border border-white/5" 
     : isWinningSquare 
-      ? "bg-emerald-500 text-white shadow-[0_0_40px_rgba(16,185,129,0.5)] animate-pulse z-10" 
-      : "bg-slate-800 text-slate-200 cursor-default border border-slate-700/50";
+      ? "bg-emerald-500 text-white shadow-[0_0_40px_rgba(16,185,129,0.7)] z-20 scale-105 animate-[pulse_1.5s_infinite]" 
+      : `bg-slate-800/60 text-slate-200 cursor-default border border-slate-700/50 ${isGameOver ? 'opacity-30' : ''}`;
 
-  const textColor = value === 'X' ? 'text-cyan-400 drop-shadow-[0_0_8px_rgba(34,211,238,0.4)]' : 'text-rose-400 drop-shadow-[0_0_8px_rgba(251,113,133,0.4)]';
+  const textColor = value === 'X' 
+    ? 'text-cyan-400 drop-shadow-[0_0_8px_rgba(34,211,238,0.6)]' 
+    : 'text-rose-400 drop-shadow-[0_0_8px_rgba(251,113,133,0.6)]';
 
   return (
     <button
@@ -31,7 +36,7 @@ const Square: React.FC<SquareProps> = ({ value, onClick, isWinningSquare, disabl
       onClick={onClick}
       disabled={disabled || value !== null}
     >
-      <span className={value ? "scale-100 opacity-100 transition-all duration-500 ease-out" : "scale-0 opacity-0"}>
+      <span className={`inline-block transition-all duration-500 ${value ? "scale-100 rotate-0 opacity-100" : "scale-0 rotate-45 opacity-0"}`}>
         {value}
       </span>
     </button>
@@ -39,20 +44,26 @@ const Square: React.FC<SquareProps> = ({ value, onClick, isWinningSquare, disabl
 };
 
 // --- SERVIÇO IA (GEMINI) ---
-const getAIMove = async (board: SquareValue[], aiPlayer: Player): Promise<number> => {
+const getAIMove = async (board: SquareValue[], aiPlayer: Player, difficulty: Difficulty): Promise<number> => {
+  // Lógica de Movimento Aleatório (Fácil)
+  const availableMoves = board.map((val, idx) => val === null ? idx : -1).filter(idx => idx !== -1);
+  const getRandomMove = () => availableMoves[Math.floor(Math.random() * availableMoves.length)];
+
+  if (difficulty === Difficulty.EASY) return getRandomMove();
+  
+  // Lógica Normal (50% Chance de errar)
+  if (difficulty === Difficulty.NORMAL && Math.random() > 0.5) return getRandomMove();
+
+  // Lógica Neural (Gemini)
   const apiKey = process.env.API_KEY;
-  if (!apiKey) {
-    if (board[4] === null) return 4;
-    return board.findIndex(val => val === null);
-  }
+  if (!apiKey) return getRandomMove();
 
   const ai = new GoogleGenAI({ apiKey });
   const boardStr = board.map((val, idx) => val === null ? idx : val).join(', ');
   
-  const prompt = `Você é um mestre estratégico de Jogo da Velha. Você joga como '${aiPlayer}'. 
-  Tabuleiro atual: [${boardStr}]. (null/números são casas vazias).
-  Analise o melhor movimento para vencer ou bloquear o adversário.
-  Responda APENAS um JSON: {"move": índice_de_0_a_8}.`;
+  const prompt = `Você é o mestre invencível do Jogo da Velha. Jogue como '${aiPlayer}'. 
+  Tabuleiro atual: [${boardStr}].
+  Analise estrategicamente e vença. Responda APENAS um JSON: {"move": índice_de_0_a_8}.`;
 
   try {
     const response = await ai.models.generateContent({
@@ -62,9 +73,7 @@ const getAIMove = async (board: SquareValue[], aiPlayer: Player): Promise<number
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
-          properties: {
-            move: { type: Type.INTEGER, description: "O índice da jogada (0-8)." }
-          },
+          properties: { move: { type: Type.INTEGER } },
           required: ["move"]
         }
       }
@@ -72,10 +81,10 @@ const getAIMove = async (board: SquareValue[], aiPlayer: Player): Promise<number
 
     const json = JSON.parse(response.text.trim());
     const move = json.move;
-    if (typeof move === 'number' && move >= 0 && move <= 8 && board[move] === null) return move;
-    return board.findIndex(val => val === null);
+    if (typeof move === 'number' && board[move] === null) return move;
+    return getRandomMove();
   } catch (e) {
-    return board.findIndex(val => val === null);
+    return getRandomMove();
   }
 };
 
@@ -88,33 +97,32 @@ const App: React.FC = () => {
   const [board, setBoard] = useState<SquareValue[]>(Array(9).fill(null));
   const [isXNext, setIsXNext] = useState<boolean>(true);
   const [gameMode, setGameMode] = useState<GameMode>(GameMode.PVE);
+  const [difficulty, setDifficulty] = useState<Difficulty>(Difficulty.NORMAL);
   const [isThinking, setIsThinking] = useState<boolean>(false);
   const [scores, setScores] = useState(() => {
-    const saved = localStorage.getItem('ttt_scores');
+    const saved = localStorage.getItem('ttt_scores_v2');
     return saved ? JSON.parse(saved) : { X: 0, O: 0, Draws: 0 };
   });
 
-  // Salvar scores sempre que mudarem
   useEffect(() => {
-    localStorage.setItem('ttt_scores', JSON.stringify(scores));
+    localStorage.setItem('ttt_scores_v2', JSON.stringify(scores));
   }, [scores]);
 
-  const checkWinner = (squares: SquareValue[]) => {
+  const checkWinner = useMemo(() => {
     for (const [a, b, c] of WINNING_COMBINATIONS) {
-      if (squares[a] && squares[a] === squares[b] && squares[a] === squares[c]) {
-        return { winner: squares[a] as Player, line: [a, b, c] };
+      if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+        return { winner: board[a] as Player, line: [a, b, c] };
       }
     }
-    return squares.every(sq => sq !== null) ? { winner: 'Draw' as const, line: null } : null;
-  };
+    return board.every(sq => sq !== null) ? { winner: 'Draw' as const, line: null } : null;
+  }, [board]);
 
-  const result = checkWinner(board);
-  const winner = result?.winner || null;
-  const winningLine = result?.line || null;
+  const winner = checkWinner?.winner || null;
+  const winningLine = checkWinner?.line || null;
 
   const handleClick = useCallback((index: number) => {
     if (board[index] || winner || isThinking) return;
-    if (window.navigator.vibrate) window.navigator.vibrate(15);
+    if (window.navigator.vibrate) window.navigator.vibrate(25);
     
     const newBoard = [...board];
     newBoard[index] = isXNext ? 'X' : 'O';
@@ -126,22 +134,23 @@ const App: React.FC = () => {
     if (gameMode === GameMode.PVE && !isXNext && !winner) {
       const triggerAI = async () => {
         setIsThinking(true);
-        // Delay artificial para a IA não parecer instantânea demais
-        await new Promise(r => setTimeout(r, 800));
-        const move = await getAIMove(board, 'O');
+        // Delay fake para humanizar a IA
+        const delay = difficulty === Difficulty.NEURAL ? 1200 : 600;
+        await new Promise(r => setTimeout(r, delay));
+        const move = await getAIMove(board, 'O', difficulty);
         setIsThinking(false);
         if (move !== -1) handleClick(move);
       };
       triggerAI();
     }
-  }, [isXNext, gameMode, winner, board, handleClick]);
+  }, [isXNext, gameMode, winner, board, handleClick, difficulty]);
 
   useEffect(() => {
     if (winner) {
       if (winner === 'X') setScores(s => ({ ...s, X: s.X + 1 }));
       else if (winner === 'O') setScores(s => ({ ...s, O: s.O + 1 }));
       else setScores(s => ({ ...s, Draws: s.Draws + 1 }));
-      if (window.navigator.vibrate) window.navigator.vibrate([40, 30, 40]);
+      if (window.navigator.vibrate) window.navigator.vibrate([100, 80, 100]);
     }
   }, [winner]);
 
@@ -151,113 +160,122 @@ const App: React.FC = () => {
     setIsThinking(false);
   };
 
-  const clearScores = () => {
-    if (confirm("Deseja zerar o placar histórico?")) {
-      const empty = { X: 0, O: 0, Draws: 0 };
-      setScores(empty);
-      localStorage.setItem('ttt_scores', JSON.stringify(empty));
-    }
-  };
-
   return (
-    <div className="h-screen w-full flex flex-col items-center justify-between py-6 px-6 bg-slate-950 text-slate-50 overflow-hidden select-none touch-none">
-      <header className="text-center w-full mt-4">
-        <h1 className="text-4xl font-extrabold tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 via-indigo-400 to-rose-400">
-          TIC-TAC-TOE AI
+    <div className="h-screen w-full flex flex-col items-center justify-between py-8 px-6 bg-[#020617] text-slate-50 overflow-hidden select-none">
+      {/* Header */}
+      <header className="text-center w-full space-y-1">
+        <h1 className="text-3xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-b from-white to-slate-500 italic">
+          TIC·TAC·TOE
         </h1>
-        <div className="flex items-center justify-center gap-2 mt-1">
-          <span className="h-1 w-1 rounded-full bg-emerald-500 animate-pulse"></span>
-          <p className="text-slate-500 text-[9px] font-bold uppercase tracking-[0.2em]">Gemini 3 Flash Online</p>
+        <div className="flex items-center justify-center gap-1.5 opacity-40">
+          <div className={`w-1.5 h-1.5 rounded-full ${isThinking ? 'bg-amber-400 animate-bounce' : 'bg-emerald-400'}`}></div>
+          <span className="text-[9px] font-bold uppercase tracking-[0.2em]">
+            {isThinking ? "Sincronizando Neural Link..." : "Sistema Operacional Ativo"}
+          </span>
         </div>
       </header>
 
-      <div className="w-full max-w-sm space-y-6">
-        {/* Toggle Mode */}
-        <div className="flex bg-slate-900/80 p-1.5 rounded-2xl border border-slate-800 backdrop-blur-xl">
-          <button 
-            onClick={() => { setGameMode(GameMode.PVE); resetGame(); }} 
-            className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all duration-300 ${gameMode === GameMode.PVE ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
-          >
-            vs Gemini
-          </button>
-          <button 
-            onClick={() => { setGameMode(GameMode.PVP); resetGame(); }} 
-            className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all duration-300 ${gameMode === GameMode.PVP ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
-          >
-            Local PvP
-          </button>
+      <main className="w-full max-w-xs flex flex-col gap-6">
+        {/* Selectores de Modo e Dificuldade */}
+        <div className="space-y-3">
+          <div className="flex bg-slate-900/60 p-1 rounded-2xl border border-white/5">
+            <button 
+              onClick={() => { setGameMode(GameMode.PVE); resetGame(); }} 
+              className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${gameMode === GameMode.PVE ? 'bg-white text-black shadow-lg' : 'text-slate-500'}`}
+            >
+              vs IA
+            </button>
+            <button 
+              onClick={() => { setGameMode(GameMode.PVP); resetGame(); }} 
+              className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${gameMode === GameMode.PVP ? 'bg-white text-black shadow-lg' : 'text-slate-500'}`}
+            >
+              Amigo
+            </button>
+          </div>
+
+          {gameMode === GameMode.PVE && (
+            <div className="flex justify-between gap-1 px-1">
+              {(['EASY', 'NORMAL', 'NEURAL'] as Difficulty[]).map((diff) => (
+                <button
+                  key={diff}
+                  onClick={() => { setDifficulty(diff); resetGame(); }}
+                  className={`px-3 py-1.5 rounded-lg text-[8px] font-bold uppercase border transition-all ${difficulty === diff ? 'border-cyan-500/50 text-cyan-400 bg-cyan-500/10' : 'border-transparent text-slate-600'}`}
+                >
+                  {diff === 'EASY' ? 'Fácil' : diff === 'NORMAL' ? 'Médio' : 'Neural'}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* Board Container */}
+        {/* Board */}
         <div className="relative group">
-          <div className="absolute -inset-1 bg-gradient-to-r from-cyan-500/20 to-rose-500/20 rounded-[2.8rem] blur-xl opacity-50 group-hover:opacity-100 transition duration-1000"></div>
-          <div className="relative grid grid-cols-3 gap-3 bg-slate-900/60 p-4 rounded-[2.5rem] border border-slate-800 shadow-2xl backdrop-blur-sm">
+          {/* Ambient Glow */}
+          <div className="absolute -inset-6 bg-gradient-to-tr from-cyan-500/10 to-rose-500/10 rounded-[3rem] blur-3xl opacity-50 group-hover:opacity-100 transition-opacity"></div>
+          
+          <div className="grid grid-cols-3 gap-3 bg-slate-900/60 p-4 rounded-[2.2rem] border border-white/10 backdrop-blur-2xl relative z-10">
             {board.map((sq, i) => (
               <Square 
                 key={i} 
                 value={sq} 
                 onClick={() => handleClick(i)} 
                 isWinningSquare={winningLine?.includes(i) || false} 
+                isGameOver={!!winner}
                 disabled={!!winner || isThinking} 
               />
             ))}
           </div>
 
-          {/* Status Badge */}
-          <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-full max-w-[200px]">
-            <div className="bg-slate-900 border border-slate-700/50 px-5 py-2.5 rounded-full shadow-2xl text-center backdrop-blur-md">
+          {/* Status Bar */}
+          <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-full flex justify-center z-20">
+            <div className={`px-5 py-2 rounded-full shadow-2xl font-black text-[9px] uppercase tracking-wider transition-all duration-500 ${winner ? 'bg-emerald-500 text-white scale-110' : 'bg-white text-black'}`}>
               {isThinking ? (
-                <div className="flex items-center justify-center gap-2">
-                  <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-                  <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-                  <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce"></div>
-                  <span className="text-[10px] font-black uppercase text-indigo-400 tracking-wider ml-1">Processando</span>
-                </div>
+                <span className="flex items-center gap-1">
+                  Gemini <span className="animate-pulse">...</span>
+                </span>
               ) : winner ? (
-                <span className={`text-[10px] font-black uppercase tracking-wider ${winner === 'Draw' ? 'text-slate-300' : 'text-emerald-400'}`}>
-                  {winner === 'Draw' ? 'Empate Técnico' : `Vencedor: ${winner}`}
-                </span>
+                winner === 'Draw' ? "Empate Técnico" : `Vencedor: ${winner}`
               ) : (
-                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                  Turno: <span className={isXNext ? 'text-cyan-400' : 'text-rose-400'}>{isXNext ? 'X' : 'O'}</span>
-                </span>
+                `Aguardando: ${isXNext ? 'X' : 'O'}`
               )}
             </div>
           </div>
         </div>
 
-        {/* Score Board */}
-        <div className="grid grid-cols-3 gap-3">
-          <div className="bg-slate-900/40 p-3 rounded-3xl border border-slate-800/30 text-center">
-            <div className="text-[8px] text-cyan-500 font-black mb-1 uppercase tracking-tighter">Vitórias X</div>
+        {/* Scoreboard */}
+        <div className="grid grid-cols-3 gap-2 px-2 pt-2">
+          <div className="bg-slate-900/40 py-3 rounded-2xl border border-white/5 text-center">
+            <div className="text-[8px] font-bold text-cyan-400 uppercase tracking-tighter opacity-70">Jogador X</div>
             <div className="text-xl font-black">{scores.X}</div>
           </div>
-          <div className="bg-slate-900/40 p-3 rounded-3xl border border-slate-800/30 text-center">
-            <div className="text-[8px] text-slate-500 font-black mb-1 uppercase tracking-tighter">Empates</div>
+          <div className="bg-slate-900/40 py-3 rounded-2xl border border-white/5 text-center opacity-40">
+            <div className="text-[8px] font-bold uppercase tracking-tighter">Empates</div>
             <div className="text-xl font-black">{scores.Draws}</div>
           </div>
-          <div className="bg-slate-900/40 p-3 rounded-3xl border border-slate-800/30 text-center">
-            <div className="text-[8px] text-rose-500 font-black mb-1 uppercase tracking-tighter">Vitórias O</div>
+          <div className="bg-slate-900/40 py-3 rounded-2xl border border-white/5 text-center">
+            <div className="text-[8px] font-bold text-rose-400 uppercase tracking-tighter opacity-70">Oponente O</div>
             <div className="text-xl font-black">{scores.O}</div>
           </div>
         </div>
-      </div>
+      </main>
 
-      {/* Footer Controls */}
-      <footer className="w-full max-w-sm flex flex-col gap-3 mb-4">
+      {/* Footer / Reset */}
+      <footer className="w-full max-w-xs">
         <button 
           onClick={resetGame} 
-          className="w-full py-4.5 bg-white text-slate-950 font-black text-xs uppercase tracking-[0.2em] rounded-2xl active:scale-95 transition-all shadow-xl shadow-white/10"
+          className="w-full py-4 bg-white hover:bg-slate-200 text-black font-black text-[11px] uppercase tracking-[0.3em] rounded-2xl shadow-xl transition-all active:scale-95"
         >
-          Nova Partida
-        </button>
-        <button 
-          onClick={clearScores} 
-          className="w-full py-2 text-[8px] text-slate-600 font-bold uppercase tracking-widest hover:text-slate-400 transition-colors"
-        >
-          Limpar Histórico
+          {winner ? "Nova Partida" : "Reiniciar"}
         </button>
       </footer>
+
+      {/* Tailwind Animations */}
+      <style>{`
+        @keyframes pulse {
+          0%, 100% { transform: scale(1.05); filter: brightness(1); }
+          50% { transform: scale(1.08); filter: brightness(1.3); }
+        }
+      `}</style>
     </div>
   );
 };
