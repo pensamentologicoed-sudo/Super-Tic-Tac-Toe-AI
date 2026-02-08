@@ -7,9 +7,19 @@ export enum GameMode {
   PVE = 'PVE'
 }
 
-export interface GameState {
-  board: SquareValue[];
-  isXNext: boolean;
-  winner: Player | 'Draw' | null;
-  winningLine: number[] | null;
+export enum Difficulty {
+  EASY = 'EASY',
+  NORMAL = 'NORMAL',
+  NEURAL = 'NEURAL'
+}
+
+export interface Scores {
+  X: number;
+  O: number;
+  Draws: number;
+}
+
+export interface GameMove {
+  index: number;
+  player: Player;
 }
