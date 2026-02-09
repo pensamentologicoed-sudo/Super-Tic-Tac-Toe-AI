@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Player, SquareValue, GameMode, Difficulty, Scores, GameMove } from './types';
-import { WINNING_COMBINATIONS } from './game/gameLogic';
+import { WINNING_COMBINATIONS } from './gameLogic';
 import { getAIMove } from './ai/ticTacToeAI';
 import Board from './ui/Board';
 import StatusBar from './ui/StatusBar';
@@ -14,7 +13,6 @@ const App: React.FC = () => {
   const [difficulty, setDifficulty] = useState(Difficulty.NORMAL);
   const [isThinking, setIsThinking] = useState(false);
   
-  // Estados de Histórico e Replay
   const [currentHistory, setCurrentHistory] = useState<GameMove[]>([]);
   const [lastMatchHistory, setLastMatchHistory] = useState<GameMove[] | null>(null);
   const [replayIndex, setReplayIndex] = useState<number | null>(null);
