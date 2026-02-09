@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Player, SquareValue, GameMode, Difficulty, Scores, GameMove } from './types';
-import { WINNING_COMBINATIONS } from 'game/gamelogic';
+import { WINNING_COMBINATIONS } from './game/gameLogic';
 import { getAIMove } from './ai/ticTacToeAI';
 import Board from './ui/Board';
 import StatusBar from './ui/StatusBar';
