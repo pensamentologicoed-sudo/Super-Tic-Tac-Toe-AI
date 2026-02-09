@@ -8,7 +8,7 @@ import ReplayControls from './ui/ReplayControls';
 
 const App: React.FC = () => {
   const [board, setBoard] = useState<SquareValue[]>(Array(9).fill(null));
-  const [isXNext, setIsXNext] = useState(true);S
+  const [isXNext, setIsXNext] = useState(true);
   const [gameMode, setGameMode] = useState(GameMode.PVE);
   const [difficulty, setDifficulty] = useState(Difficulty.NORMAL);
   const [isThinking, setIsThinking] = useState(false);
@@ -212,13 +212,6 @@ const App: React.FC = () => {
           </button>
         )}
       </footer>
-
-      <style>{`
-        @keyframes pulse {
-          0%, 100% { transform: scale(1.05); filter: drop-shadow(0 0 20px rgba(16,185,129,0.5)); }
-          50% { transform: scale(1.08); filter: brightness(1.2) drop-shadow(0 0 35px rgba(16,185,129,0.8)); }
-        }
-      `}</style>
     </div>
   );
 };
