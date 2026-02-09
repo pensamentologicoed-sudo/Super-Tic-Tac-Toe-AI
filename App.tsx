@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Player, SquareValue, GameMode, Difficulty, Scores, GameMove } from './types';
-import { WINNING_COMBINATIONS } from './game/gameLogic';
+import { WINNING_COMBINATIONS } from 'game/gamelogic';
 import { getAIMove } from './ai/ticTacToeAI';
 import Board from './ui/Board';
 import StatusBar from './ui/StatusBar';
@@ -8,7 +8,7 @@ import ReplayControls from './ui/ReplayControls';
 
 const App: React.FC = () => {
   const [board, setBoard] = useState<SquareValue[]>(Array(9).fill(null));
-  const [isXNext, setIsXNext] = useState(true);
+  const [isXNext, setIsXNext] = useState(true);S
   const [gameMode, setGameMode] = useState(GameMode.PVE);
   const [difficulty, setDifficulty] = useState(Difficulty.NORMAL);
   const [isThinking, setIsThinking] = useState(false);
